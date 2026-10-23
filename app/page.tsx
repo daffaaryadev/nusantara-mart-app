@@ -3,11 +3,14 @@
 import { supabase } from '../lib/supabase';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [user, setUser] = useState<any>(null);
+  const router = useRouter();
 
   // Fungsi mengambil seluruh data produk dari Supabase (Batch Loop 1000 Data)
   const fetchProducts = async () => {
@@ -45,9 +48,29 @@ export default function Home() {
     }
   };
 
+  // Cek Sesi Login User (Redir ke /login jika belum terautentikasi)
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        router.push('/login');
+      } else {
+        setUser(session.user);
+        fetchProducts();
+      }
+    };
+
+    checkSession();
+  }, [router]);
+
+  // Fungsi Logout
+  const handleLogout = async () => {
+    if (confirm('Yakin ingin keluar dari sistem?')) {
+      await supabase.auth.signOut();
+      router.push('/login');
+    }
+  };
 
   // Fungsi untuk menghapus produk
   const hapusProduk = async (id: number, nama: string) => {
@@ -74,7 +97,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800 pb-12">
-      {/* Header Bar dengan Branding NUSANTARA MART */}
+      {/* Header Bar dengan Branding NUSANTARA MART & Sesi User */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
 
@@ -82,7 +105,7 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center p-1 shadow-md shrink-0 overflow-hidden">
               <img
-                src="logo.png"
+                src="/logo.png"
                 alt="Nusantara Mart Logo"
                 className="w-full h-full object-contain"
               />
@@ -97,15 +120,27 @@ export default function Home() {
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                Kelola inventaris dan stok barang retail NUSANTARA MART
+                Sesi: <span className="font-bold text-blue-600">{user?.email || 'Memuat...'}</span>
               </p>
             </div>
           </div>
 
-          {/* Indikator Database Active */}
-          <div className="hidden sm:flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full text-xs font-semibold">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Database Active
+          {/* Status Database & Tombol Logout */}
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Database Active
+            </div>
+
+            <button
+              onClick={handleLogout}
+              className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Keluar
+            </button>
           </div>
 
         </div>

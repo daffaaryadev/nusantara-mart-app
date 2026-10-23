@@ -39,7 +39,11 @@ export default function LoginPage() {
         {/* Logo & Header */}
         <div className="text-center mb-8">
           <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl mx-auto mb-3 shadow-md">
-            NM
+              <img
+                src="/logo.png"
+                alt="Nusantara Mart Logo"
+                className="w-full h-full object-contain"
+              />
           </div>
           <h1 className="text-2xl font-black text-slate-900 uppercase tracking-wide">
             Nusantara Mart

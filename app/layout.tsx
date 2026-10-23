@@ -14,12 +14,17 @@ const geistMono = Geist_Mono({
 });
 
 const inter = Inter({ subsets: ["latin"] });
-
 export const metadata: Metadata = {
+
   title: "Nusantara Mart - Sistem Inventaris",
   description: "Aplikasi Manajemen Stok & Expired Date Nusantara Mart",
   icons: {
-    icon: "/logo.png", // Menggunakan file logo.png yang ada di folder 'public'
+    icon: [
+      {
+        url: "/logo.png",
+        type: "image/png",
+      },
+    ],
   },
 };
 
