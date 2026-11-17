@@ -108,7 +108,50 @@ export default function LaporanDashboard() {
     };
   }, [scannerOpen]);
 
-  // Hapus riwayat SO
+  // Hapus data Expired
+  const hapusED = async (id: number) => {
+    const konfirmasi = confirm(
+      "Yakin ingin menghapus data Expired ini? Data yang dihapus tidak dapat dikembalikan."
+    );
+
+    if (!konfirmasi) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("expired_dates")
+        .delete()
+        .eq("id", id)
+        .select("id");
+
+      if (error) {
+        console.error("Gagal menghapus data Expired:", error);
+        alert("Gagal menghapus data Expired: " + error.message);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        alert(
+          "Data tidak terhapus. Periksa apakah ID tersedia dan izin DELETE Supabase sudah benar."
+        );
+        return;
+      }
+
+      setListExpired((prev) =>
+        prev.filter((item) => item.id !== id)
+      );
+
+      alert("Data Expired berhasil dihapus.");
+    } catch (error: any) {
+      console.error("Kesalahan saat menghapus Expired:", error);
+      alert(
+        "Terjadi kesalahan: " +
+          (error.message ?? "Kesalahan tidak diketahui")
+      );
+    }
+  };
+
+
+  // Hapus satu riwayat Stock Opname.
   const hapusSO = async (id: number) => {
     if (!confirm("Yakin ingin menghapus riwayat SO ini?")) return;
 
@@ -118,26 +161,87 @@ export default function LaporanDashboard() {
       .eq("id", id);
 
     if (error) {
-      alert("Gagal menghapus: " + error.message);
+      alert("Gagal menghapus riwayat SO: " + error.message);
     } else {
       await fetchData();
     }
   };
 
-  // Hapus data Expired
-  const hapusED = async (id: number) => {
-    if (!confirm("Yakin ingin menghapus data Expired ini?")) return;
+  // Hapus seluruh data dalam kategori Expired yang sedang ditampilkan.
+  const hapusSemuaED = async (items: any[], label: string) => {
+    const ids = items.map((item) => item.id).filter((id) => id != null);
+    if (ids.length === 0) return;
+
+    const konfirmasi = confirm(
+      `Yakin menghapus ${ids.length} data pada bagian "${label}"? Data tidak dapat dikembalikan.`
+    );
+    if (!konfirmasi) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("expired_dates")
+        .delete()
+        .in("id", ids)
+        .select("id");
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Tidak ada data yang terhapus. Periksa izin DELETE Supabase.");
+      }
+
+      setListExpired((prev) => prev.filter((item) => !ids.includes(item.id)));
+      alert(`${data.length} data pada bagian ${label} berhasil dihapus.`);
+    } catch (error: any) {
+      console.error("Gagal menghapus semua data Expired:", error);
+      alert("Gagal menghapus data: " + (error.message ?? "Kesalahan tidak diketahui"));
+    }
+  };
+
+  // Hapus seluruh riwayat SO yang sedang ditampilkan sesuai filter.
+  const hapusSemuaSO = async (items: any[]) => {
+    const ids = items.map((item) => item.id).filter((id) => id != null);
+    if (ids.length === 0) return;
+
+    if (!confirm(`Yakin menghapus ${ids.length} riwayat Stock Opname yang tampil? Data tidak dapat dikembalikan.`)) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("stock_opname")
+        .delete()
+        .in("id", ids)
+        .select("id");
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Tidak ada riwayat yang terhapus. Periksa izin DELETE Supabase.");
+      }
+
+      setRiwayatSO((prev) => prev.filter((item) => !ids.includes(item.id)));
+      alert(`${data.length} riwayat Stock Opname berhasil dihapus.`);
+    } catch (error: any) {
+      console.error("Gagal menghapus semua riwayat SO:", error);
+      alert("Gagal menghapus riwayat SO: " + (error.message ?? "Kesalahan tidak diketahui"));
+    }
+  };
+
+  // Tandai satu riwayat Stock Opname sebagai sudah diperiksa.
+  const tandaiSudahDicek = async (id: number) => {
+    const item = riwayatSO.find((row) => row.id === id);
+    if (!item || item.sudah_dicek) return;
 
     const { error } = await supabase
-      .from("expired_dates")
-      .delete()
+      .from("stock_opname")
+      .update({ sudah_dicek: true })
       .eq("id", id);
 
     if (error) {
-      alert("Gagal menghapus: " + error.message);
-    } else {
-      await fetchData();
+      alert("Gagal menandai data: " + error.message);
+      return;
     }
+
+    setRiwayatSO((prev) =>
+      prev.map((row) => row.id === id ? { ...row, sudah_dicek: true } : row)
+    );
   };
 
   // Buka popup edit Stock Opname
@@ -443,9 +547,19 @@ export default function LaporanDashboard() {
                 <h2 className="text-lg font-extrabold text-rose-900">
                   🚨 Barang Sudah Kedaluwarsa
                 </h2>
-                <span className="rounded-full bg-rose-600 px-3 py-1 text-xs font-bold text-white">
-                  {barangSudahExpired.length} Data
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-rose-600 px-3 py-1 text-xs font-bold text-white">
+                    {barangSudahExpired.length} Data
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void hapusSemuaED(barangSudahExpired, "Barang Sudah Kedaluwarsa")}
+                    disabled={barangSudahExpired.length === 0}
+                    className={`${tombolHapus} disabled:cursor-not-allowed disabled:opacity-40`}
+                  >
+                    Hapus Semua
+                  </button>
+                </div>
               </div>
 
               {barangSudahExpired.length === 0 ? (
@@ -517,9 +631,19 @@ export default function LaporanDashboard() {
                       Barang yang akan kedaluwarsa
                     </p>
                   </div>
-                  <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                    {barangMendekatiExpired.length} Data
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                      {barangMendekatiExpired.length} Data
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void hapusSemuaED(barangMendekatiExpired, "Mendekati Kedaluwarsa")}
+                      disabled={barangMendekatiExpired.length === 0}
+                      className={`${tombolHapus} disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      Hapus Semua
+                    </button>
+                  </div>
                 </div>
 
                 {barangMendekatiExpired.length === 0 ? (
@@ -590,9 +714,19 @@ export default function LaporanDashboard() {
                       Selisih stok fisik dan sistem
                     </p>
                   </div>
-                  <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                    {filteredSO.length} Data
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                      {filteredSO.length} Data
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void hapusSemuaSO(filteredSO)}
+                      disabled={filteredSO.length === 0}
+                      className={`${tombolHapus} disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      Hapus Semua
+                    </button>
+                  </div>
                 </div>
 
                 {filteredSO.length === 0 ? (
@@ -640,10 +774,23 @@ export default function LaporanDashboard() {
                             Edit
                           </button>
                           <button
+                            type="button"
                             onClick={() => hapusSO(item.id)}
                             className={tombolHapus}
                           >
                             Hapus
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void tandaiSudahDicek(item.id)}
+                            disabled={Boolean(item.sudah_dicek)}
+                            className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                              item.sudah_dicek
+                                ? "cursor-not-allowed bg-emerald-100 text-emerald-700"
+                                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                            }`}
+                          >
+                            {item.sudah_dicek ? "✓" : "Sudah Dicek?"}
                           </button>
                         </div>
                       </article>
